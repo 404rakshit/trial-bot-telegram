@@ -1,0 +1,71 @@
+# Docker Compose - Staging Environment
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+
+version: '3.8'
+
+services:
+  postgres:
+    container_name: weather_bot_postgres_staging
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-weather_bot_staging}
+      POSTGRES_USER: ${POSTGRES_USER:-weather_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # Must be set in .env.staging
+    volumes:
+      - postgres_data_staging:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
+
+  redis:
+    container_name: weather_bot_redis_staging
+    volumes:
+      - redis_data_staging:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6380:6379"
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: staging
+    container_name: weather_bot_api_staging
+    env_file:
+      - .env.staging
+    ports:
+      - "8001:8000"
+    volumes: []  # No volume mounts in staging
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+
+  worker:
+    container_name: weather_bot_worker_staging
+    env_file:
+      - .env.staging
+    volumes: []
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_API_URL: ${VITE_API_URL}  # Set in .env.staging
+    container_name: weather_bot_frontend_staging
+    ports:
+      - "8080:80"
+    volumes: []
+    environment: []
+
+  # Cloudflare Tunnel (for external access)
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: weather_bot_cloudflared_staging
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - weather_bot_network
+    depends_on:
+      - api
+
+volumes:
+  postgres_data_staging:
+  redis_data_staging:

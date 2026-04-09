@@ -1,0 +1,103 @@
+# Docker Compose - Production Environment
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+version: '3.8'
+
+services:
+  postgres:
+    container_name: weather_bot_postgres_prod
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-weather_bot_prod}
+      POSTGRES_USER: ${POSTGRES_USER:-weather_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # MUST be set in .env.production
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    ports: []  # No external port exposure in production
+    deploy:
+      resources:
+        limits:
+          memory: 512M  # Limit for older PC
+
+  redis:
+    container_name: weather_bot_redis_prod
+    restart: always
+    volumes:
+      - redis_data_prod:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD}
+    ports: []
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: weather_bot_api_prod
+    restart: always
+    env_file:
+      - .env.production
+    ports:
+      - "127.0.0.1:8000:8000"  # Only localhost access
+    volumes: []
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2 --log-level warning
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  worker:
+    container_name: weather_bot_worker_prod
+    restart: always
+    env_file:
+      - .env.production
+    volumes: []
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    container_name: weather_bot_frontend_prod
+    restart: always
+    ports: []  # Served via cloudflared
+    volumes: []
+    environment: []
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # Cloudflare Tunnel (REQUIRED for production)
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: weather_bot_cloudflared_prod
+    restart: always
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - weather_bot_network
+    depends_on:
+      - api
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+volumes:
+  postgres_data_prod:
+  redis_data_prod:
