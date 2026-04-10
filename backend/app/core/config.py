@@ -1,6 +1,8 @@
 """Application Configuration"""
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from functools import lru_cache
+from typing import List, Union
 
 
 class Settings(BaseSettings):
@@ -14,11 +16,19 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api"
     SECRET_KEY: str = "your-secret-key-change-in-production"
 
-    # CORS
-    CORS_ORIGINS: list[str] = [
+    # CORS - Can be a comma-separated string or list
+    CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:5173",  # Vite dev server
         "http://localhost:3000",
     ]
+
+    @field_validator('CORS_ORIGINS', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS origins from comma-separated string or list"""
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(',')]
+        return v
 
     # Database
     DATABASE_URL: str = "postgresql://weather_user:weather_pass@postgres:5432/weather_bot"
