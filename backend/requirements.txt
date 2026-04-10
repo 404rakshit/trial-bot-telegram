@@ -17,6 +17,7 @@ python-telegram-bot==20.7
 
 # HTTP Client
 httpx==0.26.0
+requests==2.31.0  # For webhook setup script
 
 # Background Tasks (choose one in Phase 4)
 celery==5.3.6  # Option 1: Celery
