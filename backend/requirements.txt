@@ -16,8 +16,12 @@ redis==5.0.1
 python-telegram-bot==20.7
 
 # HTTP Client
+<<<<<<< Updated upstream
 httpx==0.26.0
 requests==2.31.0  # For webhook setup script
+=======
+httpx
+>>>>>>> Stashed changes
 
 # Background Tasks (choose one in Phase 4)
 celery==5.3.6  # Option 1: Celery
