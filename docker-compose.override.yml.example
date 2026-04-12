@@ -1,0 +1,62 @@
+# Docker Compose Override Example
+#
+# This file can be used to temporarily override docker-compose.yml settings
+# for debugging purposes.
+#
+# To use:
+# 1. Copy this file to docker-compose.override.yml
+# 2. Uncomment the sections you need
+# 3. Run: docker compose up -d
+# 4. When done debugging, delete docker-compose.override.yml
+#
+# NOTE: docker-compose.override.yml is automatically loaded by Docker Compose
+# and takes precedence over docker-compose.yml
+
+version: '3.8'
+
+services:
+  api:
+    # =================================================================
+    # Option 1: Disable entrypoint completely (for debugging)
+    # =================================================================
+    # Uncomment the following lines to skip migrations/seeding:
+
+    # entrypoint: []
+    # command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+    # Then run migrations manually:
+    # docker compose exec api alembic upgrade head
+    # docker compose exec api python seed_db.py
+
+
+    # =================================================================
+    # Option 2: Run with bash for debugging
+    # =================================================================
+    # Uncomment to start container with bash (no automatic startup):
+
+    # entrypoint: ["/bin/bash"]
+    # command: ["-c", "sleep infinity"]
+
+    # Then enter container and debug:
+    # docker compose exec api bash
+    # bash docker-entrypoint.sh uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+
+    # =================================================================
+    # Option 3: Skip just the wait/migration steps
+    # =================================================================
+    # Uncomment to start app without waiting for database:
+
+    # entrypoint: []
+    # command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+
+    # =================================================================
+    # Option 4: Add debugging environment variables
+    # =================================================================
+    # Uncomment to enable more verbose logging:
+
+    # environment:
+    #   - DEBUG=true
+    #   - PYTHONUNBUFFERED=1
+    #   - LOG_LEVEL=DEBUG
