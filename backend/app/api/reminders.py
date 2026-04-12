@@ -1,7 +1,6 @@
 """Reminder management endpoints"""
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from typing import Optional
 
@@ -37,11 +36,11 @@ class ReminderResponse(BaseModel):
 
 
 @router.get("/", response_model=list[ReminderResponse])
-async def list_reminders(
+def list_reminders(
     limit: int = Query(50, ge=1, le=100, description="Number of reminders to return (max 100)"),
     offset: int = Query(0, ge=0, description="Number of reminders to skip"),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: Session = Depends(get_db)
 ):
     """
     List active reminders for the authenticated user.
@@ -52,17 +51,15 @@ async def list_reminders(
     - Ordered by created_at descending (newest first)
     """
     # Query active reminders for current user with pagination
-    query = (
-        select(Reminder)
-        .where(Reminder.user_id == current_user.id)
-        .where(Reminder.is_active == True)
+    reminders = (
+        db.query(Reminder)
+        .filter(Reminder.user_id == current_user.id)
+        .filter(Reminder.is_active == True)
         .order_by(Reminder.created_at.desc())
         .limit(limit)
         .offset(offset)
+        .all()
     )
-
-    result = await db.execute(query)
-    reminders = result.scalars().all()
 
     # Convert datetime to ISO string for JSON serialization
     response = []
@@ -82,10 +79,10 @@ async def list_reminders(
 
 
 @router.post("/", response_model=ReminderResponse, status_code=status.HTTP_201_CREATED)
-async def create_reminder(
+def create_reminder(
     reminder: ReminderCreate,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: Session = Depends(get_db)
 ):
     """
     Create a new weather reminder for the authenticated user.
@@ -97,12 +94,12 @@ async def create_reminder(
     """
     # If template_id is provided, validate it exists
     if reminder.template_id is not None:
-        result = await db.execute(
-            select(UseCaseTemplate)
-            .where(UseCaseTemplate.id == reminder.template_id)
-            .where(UseCaseTemplate.is_active == True)
+        template = (
+            db.query(UseCaseTemplate)
+            .filter(UseCaseTemplate.id == reminder.template_id)
+            .filter(UseCaseTemplate.is_active == True)
+            .first()
         )
-        template = result.scalar_one_or_none()
 
         if not template:
             raise HTTPException(
@@ -121,8 +118,8 @@ async def create_reminder(
     )
 
     db.add(new_reminder)
-    await db.commit()
-    await db.refresh(new_reminder)
+    db.commit()
+    db.refresh(new_reminder)
 
     return ReminderResponse(
         id=new_reminder.id,
@@ -137,10 +134,10 @@ async def create_reminder(
 
 
 @router.delete("/{reminder_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_reminder(
+def delete_reminder(
     reminder_id: int,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: Session = Depends(get_db)
 ):
     """
     Soft delete a reminder (sets is_active=False).
@@ -151,12 +148,12 @@ async def delete_reminder(
     - Uses soft delete to preserve audit history
     """
     # Query reminder and verify ownership
-    result = await db.execute(
-        select(Reminder)
-        .where(Reminder.id == reminder_id)
-        .where(Reminder.user_id == current_user.id)
+    reminder = (
+        db.query(Reminder)
+        .filter(Reminder.id == reminder_id)
+        .filter(Reminder.user_id == current_user.id)
+        .first()
     )
-    reminder = result.scalar_one_or_none()
 
     if not reminder:
         raise HTTPException(
@@ -166,7 +163,7 @@ async def delete_reminder(
 
     # Soft delete: set is_active to False
     reminder.is_active = False
-    await db.commit()
+    db.commit()
 
     # 204 No Content - successful deletion with no response body
     return None

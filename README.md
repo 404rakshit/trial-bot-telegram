@@ -1,33 +1,52 @@
-# Weather Alert Telegram Bot
+# Weather Alert Telegram Bot - MVP
 
 A SaaS-style Telegram bot that sends highly configurable weather alerts to users based on their timezone and location preferences.
 
+## 🎉 **MVP Ready!** Quick Start in 3 Steps:
+
+```bash
+# 1. Setup (Windows)
+cd backend && setup_mvp.bat
+
+# 2. Edit .env with your API keys
+# Get Telegram token from @BotFather
+# Get Weather API from openweathermap.org
+
+# 3. Run
+python main.py                   # Terminal 1: API
+python app/bot_polling.py       # Terminal 2: Bot
+```
+
+**📖 Full guide:** See [`README_START_HERE.md`](README_START_HERE.md)
+
+---
+
 ## 🚀 Features
 
-- **Customizable Weather Alerts**: Get notified about weather conditions hours in advance
-- **Timezone-Aware**: All alerts respect your local timezone
-- **Anti-Spam OTP System**: Secure user linking via one-time passwords
-- **Redis Caching**: Optimized API calls with intelligent coordinate rounding
-- **Multi-Environment**: Development, staging, and production configurations
+✅ **Weather Alerts** - Get notified hours in advance
+✅ **Telegram Integration** - Full bot commands (/start, /link, /list)
+✅ **OTP Linking** - Secure account authentication
+✅ **Background Checking** - Automatic weather monitoring
+✅ **5 Templates** - Pre-configured alert patterns
+✅ **Smart Caching** - Optimized API calls
 
-## 🏗️ Architecture
+## 🏗️ Current Architecture (MVP)
 
-**Split Monorepo:**
-- **Frontend** (`/frontend`): React + Vite + Tailwind CSS → Deployed to Vercel
-- **Backend** (`/backend`): FastAPI (Python) → Self-hosted via Docker
-  - PostgreSQL for data persistence
-  - Redis for caching and OTP storage
-  - Celery/APScheduler for background weather checks
-  - Cloudflare Tunnel for secure external access
+**Simplified Local Setup:**
+- **Backend**: FastAPI (Python) with SQLite
+- **Storage**: In-memory (OTP/sessions)
+- **Bot**: Telegram polling mode
+- **Checker**: Background thread (every 15 mins)
+- **Frontend**: React + Vite (optional)
 
-**Hardware Constraint:** Optimized for low-memory older PC hosting.
+**No Docker/Redis/PostgreSQL required for MVP!**
 
 ## 📋 Prerequisites
 
-### Required Software
-- **Docker & Docker Compose** (v2.0+)
-- **Python 3.9+** (for local development)
-- **Node.js 18+** (for frontend development)
+- **Python 3.8+** (for backend)
+- **Node.js 16+** (for frontend - optional)
+- **Telegram account** (for bot testing)
+- **OpenWeatherMap account** (free tier)
 - **Git**
 
 ### External Services

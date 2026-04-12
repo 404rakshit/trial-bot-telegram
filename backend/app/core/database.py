@@ -1,27 +1,21 @@
-"""Database connection and session management"""
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase
+"""Database connection and session management - Simplified SQLite Version"""
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 from app.core.config import settings
 
-# Convert postgres:// to postgresql+asyncpg://
-DATABASE_URL = settings.DATABASE_URL.replace(
-    "postgresql://", "postgresql+asyncpg://"
-)
 
-# Create async engine
-engine = create_async_engine(
-    DATABASE_URL,
+# Create sync engine for SQLite
+engine = create_engine(
+    settings.DATABASE_URL,
     echo=settings.DEBUG,
-    pool_pre_ping=True,
-    pool_size=5,  # Low pool size for memory-constrained PC
-    max_overflow=10,
+    connect_args={"check_same_thread": False},  # SQLite specific
 )
 
 # Session factory
-AsyncSessionLocal = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
 )
 
 
@@ -30,28 +24,20 @@ class Base(DeclarativeBase):
     pass
 
 
-async def init_db():
-    """Initialize database connection
-
-    Note: Table creation is now handled by Alembic migrations.
-    Run 'alembic upgrade head' to create/update tables.
-    """
-    # Import all models here to ensure they're registered
+def init_db():
+    """Initialize database and create tables"""
+    # Import all models to register them
     from app.models import user, reminder  # noqa
 
-    # Database tables are now managed by Alembic migrations
-    # No need to call create_all() here
-    pass
+    # Create all tables
+    Base.metadata.create_all(bind=engine)
+    print("✅ Database tables created")
 
 
-async def get_db() -> AsyncSession:
+def get_db() -> Session:
     """Dependency for getting database session"""
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

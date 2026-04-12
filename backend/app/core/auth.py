@@ -1,27 +1,24 @@
-"""Session-based authentication using Redis"""
+"""Session-based authentication using in-memory storage"""
 from fastapi import Header, HTTPException, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from redis.asyncio import Redis
+from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.redis_client import get_redis
+from app.core.session_store import get_session, save_session
 from app.models.user import User
 
 
-async def get_current_user(
+def get_current_user(
     session_id: str = Header(..., alias=settings.SESSION_HEADER_NAME),
-    redis: Redis = Depends(get_redis),
-    db: AsyncSession = Depends(get_db)
+    db: Session = Depends(get_db)
 ) -> User:
     """
     Validate session and return current user.
 
     Flow:
     1. Extract session_id from X-Session-ID header
-    2. Look up chat_id in Redis: session:{session_id} -> chat_id
+    2. Look up chat_id in memory session store
     3. Query User by chat_id from database
     4. Refresh session TTL on successful validation
     5. Return User object
@@ -35,50 +32,36 @@ async def get_current_user(
             detail="Session ID required in header"
         )
 
-    # Get chat_id from Redis session
-    session_key = f"session:{session_id}"
-    chat_id_str = await redis.get(session_key)
+    # Get chat_id from in-memory session store
+    chat_id = get_session(session_id)
 
-    if not chat_id_str:
+    if not chat_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired session"
         )
 
-    try:
-        chat_id = int(chat_id_str)
-    except ValueError:
-        # Invalid chat_id format in Redis
-        await redis.delete(session_key)  # Clean up invalid session
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid session data"
-        )
-
     # Query user from database
-    result = await db.execute(
-        select(User).where(User.chat_id == chat_id)
-    )
-    user = result.scalar_one_or_none()
+    user = db.query(User).filter(User.chat_id == chat_id).first()
 
     if not user:
-        # User was deleted but session still exists
-        await redis.delete(session_key)  # Clean up orphaned session
+        # User was deleted but session still exists - clean up
+        from app.core.session_store import delete_session
+        delete_session(session_id)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found"
         )
 
     # Refresh session TTL to keep active users logged in
-    await redis.expire(session_key, settings.REDIS_SESSION_TTL)
+    save_session(session_id, chat_id, settings.SESSION_TTL)
 
     return user
 
 
-async def get_current_user_optional(
+def get_current_user_optional(
     session_id: Optional[str] = Header(None, alias=settings.SESSION_HEADER_NAME),
-    redis: Redis = Depends(get_redis),
-    db: AsyncSession = Depends(get_db)
+    db: Session = Depends(get_db)
 ) -> Optional[User]:
     """
     Optional authentication dependency.
@@ -89,25 +72,19 @@ async def get_current_user_optional(
         return None
 
     try:
-        session_key = f"session:{session_id}"
-        chat_id_str = await redis.get(session_key)
+        chat_id = get_session(session_id)
 
-        if not chat_id_str:
+        if not chat_id:
             return None
 
-        chat_id = int(chat_id_str)
-
-        result = await db.execute(
-            select(User).where(User.chat_id == chat_id)
-        )
-        user = result.scalar_one_or_none()
+        user = db.query(User).filter(User.chat_id == chat_id).first()
 
         if user:
             # Refresh session TTL
-            await redis.expire(session_key, settings.REDIS_SESSION_TTL)
+            save_session(session_id, chat_id, settings.SESSION_TTL)
 
         return user
 
-    except (ValueError, Exception):
+    except Exception:
         # Silently fail for optional auth
         return None

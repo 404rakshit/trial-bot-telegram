@@ -1,6 +1,6 @@
 """API routes"""
 from fastapi import APIRouter
-from app.api import otp, reminders, telegram_webhook, templates
+from app.api import otp, reminders, templates, telegram_webhook
 
 api_router = APIRouter()
 

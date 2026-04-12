@@ -1,7 +1,6 @@
 """Use case template endpoints"""
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app.core.database import get_db
@@ -24,8 +23,8 @@ class TemplateResponse(BaseModel):
 
 
 @router.get("/", response_model=list[TemplateResponse])
-async def list_templates(
-    db: AsyncSession = Depends(get_db)
+def list_templates(
+    db: Session = Depends(get_db)
 ):
     """
     List all active use case templates.
@@ -37,14 +36,12 @@ async def list_templates(
     Returns all active templates ordered by name for frontend dropdown display.
     """
     # Query all active templates
-    query = (
-        select(UseCaseTemplate)
-        .where(UseCaseTemplate.is_active == True)
+    templates = (
+        db.query(UseCaseTemplate)
+        .filter(UseCaseTemplate.is_active == True)
         .order_by(UseCaseTemplate.name)
+        .all()
     )
-
-    result = await db.execute(query)
-    templates = result.scalars().all()
 
     return [
         TemplateResponse(

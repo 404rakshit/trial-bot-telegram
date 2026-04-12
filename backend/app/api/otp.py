@@ -1,8 +1,8 @@
 """OTP generation endpoint"""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 import secrets
-from app.core.redis_client import get_redis
+from app.core.session_store import save_otp, get_otp
 from app.core.config import settings
 
 router = APIRouter()
@@ -20,9 +20,9 @@ class OTPResponse(BaseModel):
 
 
 @router.post("/generate", response_model=OTPResponse)
-async def generate_otp(request: OTPRequest):
+def generate_otp(request: OTPRequest):
     """
-    Generate a 6-digit OTP and store in Redis with 10-minute TTL.
+    Generate a 6-digit OTP and store in memory with 10-minute TTL.
 
     This prevents spam by requiring the user to complete the Telegram linking
     within 10 minutes of requesting the OTP.
@@ -30,24 +30,15 @@ async def generate_otp(request: OTPRequest):
     # Generate 6-digit OTP
     otp = f"{secrets.randbelow(1000000):06d}"
 
-    # Store in Redis: key = "otp:{otp}", value = session_id
-    redis = get_redis()
-    key = f"otp:{otp}"
-
     # Check if OTP already exists (collision, very rare)
-    if await redis.exists(key):
+    if get_otp(otp) is not None:
         # Try one more time
         otp = f"{secrets.randbelow(1000000):06d}"
-        key = f"otp:{otp}"
 
     # Store OTP with session_id
-    await redis.setex(
-        key,
-        settings.REDIS_OTP_TTL,
-        request.session_id
-    )
+    save_otp(otp, request.session_id, settings.OTP_TTL)
 
     return OTPResponse(
         otp=otp,
-        expires_in=settings.REDIS_OTP_TTL
+        expires_in=settings.OTP_TTL
     )

@@ -4,32 +4,17 @@ uvicorn[standard]==0.27.0
 pydantic==2.5.3
 pydantic-settings==2.1.0
 
-# Database
+# Database - Simplified for MVP (SQLite)
 sqlalchemy==2.0.25
-asyncpg==0.29.0  # Async PostgreSQL driver
-alembic==1.13.1  # Database migrations
-
-# Redis
-redis==5.0.1
 
 # Telegram Bot
 python-telegram-bot==20.7
 
 # HTTP Client
-httpx
-requests==2.31.0  # For webhook setup script
-
-# Background Tasks (choose one in Phase 4)
-celery==5.3.6  # Option 1: Celery
-# apscheduler==3.10.4  # Option 2: APScheduler
+httpx==0.25.2
 
 # Timezone handling
 pytz==2024.1
 
 # Utilities
 python-dotenv==1.0.1
-python-multipart==0.0.6  # For form data
-
-# Security
-passlib[bcrypt]==1.7.4  # Password hashing (future use)
-python-jose[cryptography]==3.3.0  # JWT tokens (future use)
