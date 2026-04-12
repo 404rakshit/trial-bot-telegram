@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://redis:6379/0"
     REDIS_OTP_TTL: int = 600  # 10 minutes for OTP
     REDIS_WEATHER_CACHE_TTL: int = 3600  # 1 hour for weather data
+    REDIS_SESSION_TTL: int = 86400  # 24 hours for session (refreshed on each request)
+
+    # Session Authentication
+    SESSION_HEADER_NAME: str = "X-Session-ID"
 
     # Telegram
     TELEGRAM_BOT_TOKEN: str = ""

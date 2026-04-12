@@ -31,13 +31,17 @@ class Base(DeclarativeBase):
 
 
 async def init_db():
-    """Initialize database tables"""
-    async with engine.begin() as conn:
-        # Import all models here to ensure they're registered
-        from app.models import user, reminder  # noqa
+    """Initialize database connection
 
-        # Create tables (in production, use Alembic migrations)
-        await conn.run_sync(Base.metadata.create_all)
+    Note: Table creation is now handled by Alembic migrations.
+    Run 'alembic upgrade head' to create/update tables.
+    """
+    # Import all models here to ensure they're registered
+    from app.models import user, reminder  # noqa
+
+    # Database tables are now managed by Alembic migrations
+    # No need to call create_all() here
+    pass
 
 
 async def get_db() -> AsyncSession:

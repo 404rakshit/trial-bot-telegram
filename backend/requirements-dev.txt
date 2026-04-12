@@ -1,0 +1,16 @@
+# Development and Testing Dependencies
+# Install with: pip install -r requirements-dev.txt
+
+# Testing
+pytest==8.0.0
+pytest-asyncio==0.23.3
+fakeredis==2.21.1
+aiosqlite==0.19.0
+
+# Code Quality
+black==24.1.1
+ruff==0.1.14
+mypy==1.8.0
+
+# Development
+watchfiles==0.21.0

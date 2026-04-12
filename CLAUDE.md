@@ -22,10 +22,10 @@ A SaaS-style Telegram Bot that sends highly configurable weather alerts (e.g., "
 - **Worker:** Celery or APScheduler (periodic weather checks)
 - **Tunnel:** Cloudflare `cloudflared` for HTTPS exposure to Vercel
 
-### Database Models (to be implemented)
-- `User` - Telegram chat_id, timezone, location
-- `UseCaseTemplate` - Pre-configured alert patterns
-- `Reminder` - User's active weather alerts
+### Database Models ✅
+- `User` - Telegram chat_id, timezone, location (with location index for weather caching)
+- `UseCaseTemplate` - Pre-configured alert patterns (5 weather templates seeded)
+- `Reminder` - User's active weather alerts (soft delete with indexes)
 
 ## Development Commands
 
@@ -47,13 +47,22 @@ docker-compose down           # Stop all services
 docker-compose logs -f api    # View API logs
 docker-compose logs -f worker # View worker logs
 
-# Database migrations (Alembic - to be setup)
-alembic revision --autogenerate -m "description"
-alembic upgrade head
+# Database migrations (Alembic)
+docker-compose exec api alembic upgrade head
+docker-compose exec api alembic revision --autogenerate -m "description"
+docker-compose exec api alembic current
+docker-compose exec api alembic history
 
-# Tests (to be implemented)
-pytest
-pytest tests/test_otp.py      # Single test file
+# Database seeding
+docker-compose exec api python seed_db.py
+
+# Tests
+docker-compose exec api bash
+pip install -r requirements-dev.txt
+pytest                        # Run all tests
+pytest -v                     # Verbose output
+pytest tests/test_auth.py     # Auth tests
+pytest tests/test_reminders.py # Reminder tests
 ```
 
 ### Frontend
@@ -102,7 +111,7 @@ npm run format
 Build strictly step-by-step. **Do not proceed to next phase until current phase is tested and confirmed working.**
 
 - [x] **Phase 1: Foundation** - Monorepo structure (`/frontend`, `/backend`), `docker-compose.yml` (Postgres, Redis, FastAPI, Worker) ✅ COMPLETE
-- [ ] **Phase 2: Database & API Core** - SQLAlchemy/SQLModel setup, create models, FastAPI lifecycle, Redis connection
+- [x] **Phase 2: Database & API Core** - Alembic migrations, session auth, reminder CRUD, template seeding, performance indexes ✅ COMPLETE
 - [ ] **Phase 3: Telegram & OTP** - Telegram webhook setup, `/start` and `/link <OTP>` commands, OTP generation endpoint
 - [ ] **Phase 4: Weather Engine** - OpenWeatherMap integration with Redis caching, scheduled background task for alerts
 - [ ] **Phase 5: React Frontend** - Vite UI for location/timezone/alert selection, OTP request flow
@@ -122,13 +131,17 @@ Build strictly step-by-step. **Do not proceed to next phase until current phase 
 - Rate limit OTP generation per IP/session
 - Sanitize user input for weather alerts
 
-### API Endpoints (to be implemented)
+### API Endpoints
 ```
-POST   /api/generate-otp          # Frontend requests OTP
-POST   /webhook/telegram          # Telegram bot webhook
-GET    /api/reminders             # User's active reminders
-POST   /api/reminders             # Create new reminder
-DELETE /api/reminders/{id}        # Delete reminder
+# Implemented (Phase 1-2)
+POST   /api/otp/generate          # Frontend requests OTP ✅
+GET    /api/templates/            # List active use case templates ✅
+GET    /api/reminders/            # User's active reminders (auth required) ✅
+POST   /api/reminders/            # Create new reminder (auth required) ✅
+DELETE /api/reminders/{id}        # Soft delete reminder (auth required) ✅
+
+# To be implemented (Phase 3+)
+POST   /api/webhook/telegram      # Telegram bot webhook
 ```
 
 ## Before Making Changes

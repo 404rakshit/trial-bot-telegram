@@ -1,5 +1,5 @@
 """User model"""
-from sqlalchemy import String, Float, DateTime, BigInteger
+from sqlalchemy import String, Float, DateTime, BigInteger, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 from app.core.database import Base
@@ -25,6 +25,11 @@ class User(Base):
 
     # Relationships
     reminders: Mapped[list["Reminder"]] = relationship("Reminder", back_populates="user", cascade="all, delete-orphan")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_users_location', 'latitude', 'longitude'),  # Composite index for weather cache lookups
+    )
 
     def __repr__(self):
         return f"<User(chat_id={self.chat_id}, timezone={self.timezone})>"

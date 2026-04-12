@@ -1,5 +1,5 @@
 """Reminder and UseCaseTemplate models"""
-from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, Text, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 from app.core.database import Base
@@ -23,7 +23,7 @@ class UseCaseTemplate(Base):
     message_template: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Active/archived
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
@@ -59,6 +59,13 @@ class Reminder(Base):
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="reminders")
     template: Mapped["UseCaseTemplate"] = relationship("UseCaseTemplate")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_reminders_user_id', 'user_id'),  # Index for user reminder queries
+        Index('ix_reminders_is_active', 'is_active'),  # Index for filtering active reminders
+        Index('ix_reminders_user_active', 'user_id', 'is_active'),  # Composite index for combined filter
+    )
 
     def __repr__(self):
         return f"<Reminder(user_id={self.user_id}, condition={self.condition}, hours_ahead={self.hours_ahead})>"
